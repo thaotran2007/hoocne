@@ -1,0 +1,622 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Hoocne: chia đa thức cho (x − a)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;600;800&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --paper: #f2f6fb;
+    --grid: rgba(52, 96, 170, 0.14);
+    --card: #ffffff;
+    --ink: #1c2f6b;
+    --muted: #55658f;
+    --red: #cf2a3b;
+    --mark: #ffe58a;
+    --markText: #1c2f6b;
+    --margin: rgba(207, 42, 59, 0.45);
+    --cell: clamp(46px, 12vw, 72px);
+    box-sizing: border-box;
+    padding-top: env(safe-area-inset-top, 0px);
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --paper: #0f1626;
+      --grid: rgba(140, 175, 255, 0.09);
+      --card: #162039;
+      --ink: #dce6ff;
+      --muted: #97a8d2;
+      --red: #ff7584;
+      --mark: #5a4a12;
+      --markText: #ffe9a8;
+      --margin: rgba(255, 117, 132, 0.4);
+    }
+  }
+  :root[data-theme="dark"] {
+    --paper: #0f1626;
+    --grid: rgba(140, 175, 255, 0.09);
+    --card: #162039;
+    --ink: #dce6ff;
+    --muted: #97a8d2;
+    --red: #ff7584;
+    --mark: #5a4a12;
+    --markText: #ffe9a8;
+    --margin: rgba(255, 117, 132, 0.4);
+  }
+  html { scroll-padding-top: env(safe-area-inset-top, 0px); }
+  *, *::before, *::after { box-sizing: inherit; }
+  body {
+    margin: 0;
+    font-family: "Be Vietnam Pro", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    color: var(--ink);
+    background-color: var(--paper);
+    background-image:
+      linear-gradient(var(--grid) 1px, transparent 1px),
+      linear-gradient(90deg, var(--grid) 1px, transparent 1px);
+    background-size: 28px 28px;
+    line-height: 1.6;
+    min-height: 100%;
+  }
+  .wrap { max-width: 880px; margin: 0 auto; padding: 28px 18px 72px; position: relative; }
+  @media (min-width: 960px) {
+    .wrap::before {
+      content: ""; position: absolute; left: -36px; top: 0; bottom: 0; width: 2px; background: var(--margin);
+    }
+  }
+  h1 {
+    font-size: clamp(2.3rem, 8vw, 4rem);
+    font-weight: 800;
+    letter-spacing: -0.03em;
+    line-height: 1.05;
+    margin: 0 0 8px;
+  }
+  .lead { margin: 0 0 22px; color: var(--muted); font-size: 1.05rem; max-width: 56ch; }
+
+  .label { font-weight: 600; font-size: 0.9rem; color: var(--muted); margin: 0 0 8px; }
+  .presets { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 12px; }
+  button {
+    font: inherit; font-weight: 600; color: var(--ink);
+    background: var(--card); border: 2px solid var(--ink); border-radius: 8px;
+    padding: 8px 14px; cursor: pointer; transition: transform .12s, background .15s;
+  }
+  button:hover:not(:disabled) { background: var(--mark); color: var(--markText); }
+  button:active:not(:disabled) { transform: translateY(1px); }
+  button:disabled { opacity: .4; cursor: default; }
+  button:focus-visible, input:focus-visible, select:focus-visible { outline: 3px solid var(--red); outline-offset: 2px; }
+  button.on { background: var(--ink); color: var(--paper); }
+  button.primary { background: var(--ink); color: var(--paper); }
+  button.primary:hover:not(:disabled) { background: var(--red); color: #fff; border-color: var(--red); }
+
+  details.custom { margin-bottom: 24px; }
+  details.custom summary { cursor: pointer; font-weight: 600; color: var(--muted); }
+  .custom-row { display: flex; flex-wrap: wrap; gap: 12px; align-items: flex-end; margin-top: 10px; }
+  .field { display: flex; flex-direction: column; gap: 4px; }
+  .field span { font-size: 0.85rem; color: var(--muted); }
+  input, select {
+    font: inherit; color: var(--ink); background: var(--card);
+    border: 2px solid var(--ink); border-radius: 8px; padding: 8px 10px;
+  }
+  input#coefs { width: min(280px, 70vw); }
+  input#aval { width: 90px; }
+  .hint { font-size: 0.85rem; color: var(--muted); margin: 8px 0 0; }
+  .err { color: var(--red); font-weight: 600; margin: 8px 0 0; min-height: 1.2em; }
+
+  .polyline { font-size: 1.15rem; margin: 0 0 14px; }
+  .polyline sup { font-size: 0.7em; }
+  .polyline b { color: var(--red); }
+
+  .phases { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 14px; }
+  .stamp {
+    border: 2px solid var(--muted); color: var(--muted);
+    border-radius: 10px; padding: 6px 14px; line-height: 1.25;
+    transition: background .2s, color .2s, border-color .2s, transform .2s;
+  }
+  .stamp:nth-child(1) { transform: rotate(-1.5deg); }
+  .stamp:nth-child(2) { transform: rotate(1deg); }
+  .stamp:nth-child(3) { transform: rotate(-.8deg); }
+  .stamp strong { display: block; font-size: 1.05rem; }
+  .stamp small { font-size: 0.78rem; }
+  .stamp.active { background: var(--mark); color: var(--markText); border-color: var(--red); transform: rotate(0) scale(1.06); }
+
+  .boardwrap {
+    background: var(--card); border: 2px solid var(--ink); border-radius: 6px;
+    padding: 22px 14px; overflow-x: auto; box-shadow: 5px 5px 0 var(--ink);
+  }
+  .board {
+    position: relative; display: grid; width: max-content; margin: 0 auto;
+    grid-template-columns: repeat(var(--cols), var(--cell));
+    grid-auto-rows: var(--cell);
+  }
+  .cell {
+    display: flex; align-items: center; justify-content: center;
+    font-size: clamp(1.2rem, 4.6vw, 1.9rem); font-weight: 600;
+    font-variant-numeric: tabular-nums; position: relative;
+    transition: background .25s;
+  }
+  .cell .v { transition: opacity .2s, transform .25s; }
+  .cell.hid .v { opacity: 0; transform: scale(.55); }
+  .cell.pop .v { animation: pop .5s ease-out; }
+  @keyframes pop { 0% { transform: scale(.4); } 60% { transform: scale(1.25); } 100% { transform: scale(1); } }
+  .cell.sep-l { border-left: 2.5px solid var(--ink); }
+  .cell.sep-t { border-top: 2.5px solid var(--ink); }
+  .cell.a .v { color: var(--red); font-weight: 800; }
+  .cell.mid .v { color: var(--red); font-size: .82em; }
+  .cell.bot .v { font-weight: 800; }
+  .cell.op { background: var(--mark); color: var(--markText); }
+  .cell.target { outline: 2.5px dashed var(--red); outline-offset: -5px; }
+  .cell.rem { outline: 3px solid var(--red); outline-offset: -4px; }
+  .cell.rem .v { color: var(--red); }
+
+  .chip {
+    position: absolute; z-index: 3; pointer-events: none;
+    display: flex; align-items: center; justify-content: center;
+    border-radius: 999px; background: var(--mark); color: var(--markText);
+    border: 2px solid var(--red);
+    font-size: clamp(1.1rem, 4.2vw, 1.7rem); font-weight: 800; font-variant-numeric: tabular-nums;
+    transition-property: transform; transition-timing-function: cubic-bezier(.5, 0, .2, 1);
+  }
+  .chip.prod { color: var(--red); }
+  svg.arrows { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; pointer-events: none; z-index: 2; }
+  svg.arrows path { stroke: var(--red); stroke-width: 2.6; fill: none; stroke-linecap: round; }
+  svg.arrows .head { fill: var(--red); }
+
+  .caption { min-height: 8.2em; margin: 20px 0 6px; }
+  .caption h2 { margin: 0 0 4px; font-size: 1.5rem; color: var(--red); letter-spacing: -0.01em; }
+  .caption p { margin: 0; max-width: 62ch; font-size: 1.05rem; }
+  .caption sup { font-size: .7em; }
+
+  .controls { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin-top: 8px; }
+  .controls .spacer { flex: 1; }
+  .scrub { margin: 14px 0 0; display: flex; align-items: center; gap: 12px; }
+  .scrub input[type=range] { flex: 1; padding: 0; border: none; background: none; accent-color: var(--red); }
+  .scrub span { font-size: .9rem; color: var(--muted); min-width: 5.5em; text-align: right; font-variant-numeric: tabular-nums; }
+
+  .result {
+    margin-top: 22px; padding: 16px 18px; border-left: 6px solid var(--red);
+    background: var(--card); border-radius: 0 6px 6px 0;
+  }
+  .result[hidden] { display: none; }
+  .result p { margin: 4px 0; }
+  .result sup { font-size: .7em; }
+  .result .big { font-size: clamp(1.15rem, 4.2vw, 1.6rem); font-weight: 800; margin-top: 10px; }
+
+  .notes { margin-top: 44px; }
+  .notes h3 { font-size: 1.3rem; margin: 0 0 8px; }
+  .notes ul { list-style: none; padding: 0; margin: 0; }
+  .notes li { padding: 12px 0 12px 18px; border-left: 3px solid var(--red); margin-bottom: 10px; max-width: 64ch; }
+  .notes li b { color: var(--red); }
+  .notes sup { font-size: .7em; }
+
+  @media (prefers-reduced-motion: reduce) {
+    .cell.pop .v { animation: none; }
+    .stamp { transition: none; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Sơ đồ Hoocne</h1>
+  <p class="lead">Chia đa thức cho (x − a) chỉ bằng một bảng số. Bấm “Bước tiếp” hoặc “Tự chạy” để xem từng số rơi xuống, nhân, rồi cộng.</p>
+
+  <p class="label">Chọn một ví dụ</p>
+  <div class="presets" id="presets"></div>
+
+  <details class="custom">
+    <summary>Hoặc nhập đa thức của bạn</summary>
+    <div class="custom-row">
+      <label class="field"><span>Hệ số, từ bậc cao xuống thấp</span><input id="coefs" type="text" value="1 -2 -1 2" inputmode="text" autocomplete="off"></label>
+      <label class="field"><span>Chia cho (x − a), nhập a</span><input id="aval" type="text" value="1" inputmode="decimal" autocomplete="off"></label>
+      <button id="applyCustom" class="primary" type="button">Dùng đa thức này</button>
+    </div>
+    <p class="hint">Cách nhau bằng dấu cách. Số hạng bị thiếu thì nhập 0, ví dụ x³ − 3x + 2 nhập là: 1 0 -3 2</p>
+    <p class="err" id="err" role="alert"></p>
+  </details>
+
+  <p class="polyline" id="polyLine"></p>
+
+  <div class="phases" aria-label="Ba bước ghi nhớ">
+    <div class="stamp" id="stDrop"><strong>Đầu rơi</strong><small>hạ hệ số đầu xuống</small></div>
+    <div class="stamp" id="stMul"><strong>Nhân ngang</strong><small>nhân với a</small></div>
+    <div class="stamp" id="stAdd"><strong>Cộng chéo</strong><small>cộng hai số cùng cột</small></div>
+  </div>
+
+  <div class="boardwrap"><div class="board" id="board"></div></div>
+
+  <div class="caption" aria-live="polite">
+    <h2 id="capTitle"></h2>
+    <p id="capText"></p>
+  </div>
+
+  <div class="controls">
+    <button id="btnReset" type="button">Về đầu</button>
+    <button id="btnPrev" type="button">Bước trước</button>
+    <button id="btnNext" class="primary" type="button">Bước tiếp</button>
+    <button id="btnPlay" type="button">Tự chạy</button>
+    <span class="spacer"></span>
+    <label class="field" style="flex-direction:row;align-items:center;gap:8px">
+      <span>Tốc độ</span>
+      <select id="speed">
+        <option value="3200">Chậm</option>
+        <option value="2200" selected>Vừa</option>
+        <option value="1300">Nhanh</option>
+      </select>
+    </label>
+  </div>
+  <div class="scrub">
+    <input id="scrub" type="range" min="0" max="1" value="0" aria-label="Kéo để chọn bước">
+    <span id="stepCount"></span>
+  </div>
+
+  <div class="result" id="result" hidden></div>
+
+  <section class="notes">
+    <h3>Ba điều cần nhớ</h3>
+    <ul>
+      <li><b>Chia cho (x − a) thì dùng a.</b> Chia cho (x + 2) nghĩa là a = −2.</li>
+      <li><b>Thiếu số hạng thì điền 0.</b> Ví dụ x³ − 3x + 2 có hệ số 1, 0, −3, 2.</li>
+      <li><b>Số dư cuối cùng chính là P(a).</b> Dư bằng 0 nghĩa là a là nghiệm, và P(x) chia hết cho (x − a).</li>
+    </ul>
+  </section>
+</div>
+
+<script>
+(function () {
+  var MINUS = "\u2212";
+  function $(s) { return document.querySelector(s); }
+  function r4(n) { return Math.round(n * 10000) / 10000; }
+  function fmt(n) { n = r4(n); return n < 0 ? MINUS + Math.abs(n) : String(n); }
+  function fmtP(n) { return n < 0 ? "(" + fmt(n) + ")" : fmt(n); }
+  function sup(p) { return p === 1 ? "" : "<sup>" + p + "</sup>"; }
+
+  function polyHTML(c) {
+    var n = c.length - 1, out = "";
+    c.forEach(function (k, i) {
+      var p = n - i;
+      if (k === 0) return;
+      var abs = Math.abs(k);
+      var term = p === 0 ? fmt(abs) : ((abs === 1 ? "" : fmt(abs)) + "x" + sup(p));
+      if (out === "") out = (k < 0 ? MINUS : "") + term;
+      else out += (k < 0 ? " " + MINUS + " " : " + ") + term;
+    });
+    return out || "0";
+  }
+  function factorHTML(a) {
+    if (a === 0) return "x";
+    return a > 0 ? "(x " + MINUS + " " + fmt(a) + ")" : "(x + " + fmt(-a) + ")";
+  }
+
+  var PRESETS = [
+    { name: "Mẫu số câu 12", c: [1, -2, -1, 2], a: 1 },
+    { name: "Tử số câu 12", c: [2, -3, 1], a: 1 },
+    { name: "Thiếu số hạng", c: [1, 0, -3, 2], a: 1 },
+    { name: "Chia cho (x + 2)", c: [1, 4, 1, -6], a: -2 },
+    { name: "Dư khác 0", c: [1, 0, 1, 3], a: 1 }
+  ];
+
+  var board = $("#board");
+  var c, a, N, b, m, last;
+  var top, mid, bot;
+  var step = 0, playing = false, playTimer = null, anim = [], chips = [];
+  var reduce = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+  function compute() {
+    N = c.length;
+    b = [c[0]]; m = [null];
+    for (var i = 1; i < N; i++) {
+      m[i] = r4(b[i - 1] * a);
+      b[i] = r4(c[i] + m[i]);
+    }
+    last = 2 * N;
+  }
+
+  function mkCell(cls, text) {
+    var d = document.createElement("div");
+    d.className = "cell " + (cls || "");
+    var v = document.createElement("span");
+    v.className = "v";
+    v.textContent = text == null ? "" : text;
+    d.appendChild(v);
+    board.appendChild(d);
+    return d;
+  }
+
+  function build() {
+    board.innerHTML = "";
+    board.style.setProperty("--cols", N + 1);
+    var svgNS = "http://www.w3.org/2000/svg";
+    var svg = document.createElementNS(svgNS, "svg");
+    svg.setAttribute("class", "arrows");
+    svg.id = "arrows";
+    board.appendChild(svg);
+    top = []; mid = []; bot = [];
+    var j;
+    // row 0
+    mkCell("a", fmt(a));
+    for (j = 0; j < N; j++) top[j] = mkCell("top" + (j === 0 ? " sep-l" : ""), fmt(c[j]));
+    // row 1
+    mkCell("");
+    for (j = 0; j < N; j++) mid[j] = mkCell("mid" + (j === 0 ? " sep-l" : ""), j === 0 ? "" : fmt(m[j]));
+    // row 2
+    mkCell("");
+    for (j = 0; j < N; j++) bot[j] = mkCell("bot sep-t" + (j === 0 ? " sep-l" : ""), fmt(b[j]));
+    // fix: the first row-2 col-0 cell has no top line
+    $("#scrub").max = last;
+  }
+
+  function clearAnim() {
+    anim.forEach(clearTimeout); anim = [];
+    chips.forEach(function (ch) { if (ch.parentNode) ch.parentNode.removeChild(ch); });
+    chips = [];
+  }
+
+  function flightMs() { return Math.round(parseInt($("#speed").value, 10) * 0.4); }
+
+  function centerOf(el) { return { x: el.offsetLeft + el.offsetWidth / 2, y: el.offsetTop + el.offsetHeight / 2 }; }
+
+  function drawArrow(from, to, animate, dur) {
+    var svg = $("#arrows");
+    while (svg.firstChild) svg.removeChild(svg.firstChild);
+    var p1 = centerOf(from), p2 = centerOf(to);
+    var dx = p2.x - p1.x, dy = p2.y - p1.y, len = Math.sqrt(dx * dx + dy * dy);
+    var ux = dx / len, uy = dy / len, pad = from.offsetWidth * 0.34;
+    var sx = p1.x + ux * pad, sy = p1.y + uy * pad;
+    var ex = p2.x - ux * pad, ey = p2.y - uy * pad;
+    var svgNS = "http://www.w3.org/2000/svg";
+    var path = document.createElementNS(svgNS, "path");
+    path.setAttribute("d", "M" + sx + "," + sy + " L" + ex + "," + ey);
+    svg.appendChild(path);
+    var head = document.createElementNS(svgNS, "path");
+    var hs = 9, nx = -uy, ny = ux;
+    head.setAttribute("class", "head");
+    head.setAttribute("d", "M" + ex + "," + ey + " L" + (ex - ux * hs + nx * hs * 0.6) + "," + (ey - uy * hs + ny * hs * 0.6) +
+      " L" + (ex - ux * hs - nx * hs * 0.6) + "," + (ey - uy * hs - ny * hs * 0.6) + " Z");
+    svg.appendChild(head);
+    if (animate && !reduce) {
+      var L = path.getTotalLength();
+      path.style.strokeDasharray = L;
+      path.style.strokeDashoffset = L;
+      head.style.opacity = 0;
+      path.getBoundingClientRect();
+      path.style.transition = "stroke-dashoffset " + Math.round(dur * 0.8) + "ms ease-out";
+      head.style.transition = "opacity 200ms ease-out " + Math.round(dur * 0.7) + "ms";
+      requestAnimationFrame(function () {
+        path.style.strokeDashoffset = 0;
+        head.style.opacity = 1;
+      });
+    }
+  }
+
+  function makeChip(src, text, cls, dur) {
+    var ch = document.createElement("div");
+    ch.className = "chip " + (cls || "");
+    ch.textContent = text;
+    ch.style.left = (src.offsetLeft + 6) + "px";
+    ch.style.top = (src.offsetTop + 6) + "px";
+    ch.style.width = (src.offsetWidth - 12) + "px";
+    ch.style.height = (src.offsetHeight - 12) + "px";
+    ch.style.transitionDuration = dur + "ms";
+    board.appendChild(ch);
+    chips.push(ch);
+    ch._src = src;
+    return ch;
+  }
+  function moveChip(ch, dst) {
+    var dx = dst.offsetLeft - ch._src.offsetLeft, dy = dst.offsetTop - ch._src.offsetTop;
+    requestAnimationFrame(function () {
+      requestAnimationFrame(function () { ch.style.transform = "translate(" + dx + "px," + dy + "px)"; });
+    });
+  }
+
+  function fly(kind, target, s) {
+    var dur = flightMs(), i;
+    var arrive = function () {
+      chips.forEach(function (ch) { if (ch.parentNode) ch.parentNode.removeChild(ch); });
+      chips = [];
+      target.classList.remove("hid");
+      target.classList.add("pop");
+    };
+    if (kind === "drop") {
+      var ch = makeChip(top[0], fmt(c[0]), "", dur);
+      moveChip(ch, bot[0]);
+    } else if (kind === "mul") {
+      i = s / 2;
+      var cm = makeChip(bot[i - 1], fmt(b[i - 1]), "", dur);
+      moveChip(cm, mid[i]);
+      anim.push(setTimeout(function () { cm.textContent = fmt(m[i]); cm.classList.add("prod"); }, Math.round(dur * 0.45)));
+    } else if (kind === "add") {
+      i = (s - 1) / 2;
+      var c1 = makeChip(top[i], fmt(c[i]), "", dur);
+      var c2 = makeChip(mid[i], fmt(m[i]), "prod", dur);
+      moveChip(c1, bot[i]); moveChip(c2, bot[i]);
+    }
+    anim.push(setTimeout(arrive, dur + 40));
+  }
+
+  function caption(s) {
+    var i;
+    if (s === 0) {
+      var hasZero = c.some(function (k) { return k === 0; });
+      return ["Chuẩn bị bảng",
+        "Viết các hệ số của P(x) ở hàng trên theo thứ tự bậc giảm dần" + (hasZero ? " (số hạng thiếu đã điền 0)" : "") +
+        ". Bên trái viết a = <b>" + fmt(a) + "</b>, vì ta chia cho " + factorHTML(a) + ". Bấm “Bước tiếp” để bắt đầu."];
+    }
+    if (s === 1) {
+      return ["Đầu rơi", "Hạ thẳng hệ số đầu tiên, <b>" + fmt(c[0]) + "</b>, xuống hàng dưới. Không tính toán gì cả."];
+    }
+    if (s === last) {
+      return ["Đọc kết quả", "Các số ở hàng dưới, trừ ô cuối, là hệ số của thương (bậc giảm đi 1). Ô cuối cùng, khoanh đỏ, là số dư."];
+    }
+    if (s % 2 === 0) {
+      i = s / 2;
+      return ["Nhân ngang",
+        "Lấy số vừa có ở hàng dưới nhân với a: " + fmt(b[i - 1]) + " × " + fmtP(a) + " = <b>" + fmt(m[i]) +
+        "</b>. Viết kết quả lên hàng giữa, ở cột bên phải."];
+    }
+    i = (s - 1) / 2;
+    return ["Cộng chéo",
+      "Cộng hai số cùng cột: " + fmt(c[i]) + " + " + fmtP(m[i]) + " = <b>" + fmt(b[i]) +
+      "</b>. Viết tổng xuống hàng dưới." + (i < N - 1 ? " Rồi lặp lại: lấy số mới này nhân với a." : " Đây là số dư.")];
+  }
+
+  function render(s, animate) {
+    clearAnim();
+    step = s;
+    animate = animate && !reduce;
+    var kind = null, target = null, i;
+    if (s === 1) { kind = "drop"; target = bot[0]; }
+    else if (s >= 2 && s <= 2 * N - 1) {
+      if (s % 2 === 0) { kind = "mul"; target = mid[s / 2]; }
+      else { kind = "add"; target = bot[(s - 1) / 2]; }
+    }
+    var all = board.querySelectorAll(".cell");
+    Array.prototype.forEach.call(all, function (el) { el.classList.remove("op", "target", "pop", "rem"); });
+    for (i = 1; i < N; i++) mid[i].classList.toggle("hid", s < 2 * i);
+    mid[0].classList.add("hid");
+    bot[0].classList.toggle("hid", s < 1);
+    for (i = 1; i < N; i++) bot[i].classList.toggle("hid", s < 2 * i + 1);
+    if (animate && target) target.classList.add("hid");
+
+    var svg = $("#arrows");
+    while (svg.firstChild) svg.removeChild(svg.firstChild);
+
+    if (kind === "drop") { top[0].classList.add("op"); target.classList.add("target"); }
+    if (kind === "mul") {
+      i = s / 2;
+      bot[i - 1].classList.add("op"); mid[i].classList.add("target");
+      drawArrow(bot[i - 1], mid[i], animate, flightMs());
+    }
+    if (kind === "add") {
+      i = (s - 1) / 2;
+      top[i].classList.add("op"); mid[i].classList.add("op"); bot[i].classList.add("target");
+    }
+    if (s === last) {
+      for (i = 0; i < N - 1; i++) bot[i].classList.add("op");
+      bot[N - 1].classList.add("rem");
+    }
+
+    var cap = caption(s);
+    $("#capTitle").textContent = cap[0];
+    $("#capText").innerHTML = cap[1];
+    $("#stDrop").classList.toggle("active", kind === "drop");
+    $("#stMul").classList.toggle("active", kind === "mul");
+    $("#stAdd").classList.toggle("active", kind === "add");
+    $("#scrub").value = s;
+    $("#stepCount").textContent = "Bước " + s + " / " + last;
+    $("#btnPrev").disabled = s === 0;
+    $("#btnReset").disabled = s === 0;
+    $("#btnNext").disabled = s === last;
+
+    var res = $("#result");
+    if (s === last) {
+      var q = b.slice(0, N - 1), r = b[N - 1];
+      var html = "<p>Thương: <b>Q(x) = " + polyHTML(q) + "</b></p>" +
+        "<p>Số dư: <b>r = " + fmt(r) + "</b>, cũng bằng P(" + fmt(a) + ").</p>";
+      if (r === 0) {
+        html += "<p class=\"big\">P(x) = " + factorHTML(a) + "(" + polyHTML(q) + ")</p><p>Dư bằng 0 nên phép chia hết.</p>";
+      } else {
+        html += "<p class=\"big\">P(x) = " + factorHTML(a) + "(" + polyHTML(q) + ") " + (r < 0 ? MINUS + " " + fmt(-r) : "+ " + fmt(r)) +
+          "</p><p>Dư khác 0 nên " + fmt(a) + " không phải nghiệm và P(x) không chia hết cho " + factorHTML(a) + ".</p>";
+      }
+      res.innerHTML = html;
+      res.hidden = false;
+    } else {
+      res.hidden = true;
+    }
+
+    if (animate && target) fly(kind, target, s);
+  }
+
+  function stopPlay() {
+    playing = false;
+    clearTimeout(playTimer);
+    $("#btnPlay").textContent = "Tự chạy";
+    $("#btnPlay").classList.remove("on");
+  }
+  function tick() {
+    if (!playing) return;
+    if (step >= last) { stopPlay(); return; }
+    render(step + 1, true);
+    if (step >= last) { stopPlay(); return; }
+    playTimer = setTimeout(tick, parseInt($("#speed").value, 10));
+  }
+  function startPlay() {
+    if (step >= last) render(0, false);
+    playing = true;
+    $("#btnPlay").textContent = "Dừng";
+    $("#btnPlay").classList.add("on");
+    playTimer = setTimeout(tick, 400);
+  }
+
+  function setPoly(newC, newA) {
+    stopPlay();
+    c = newC; a = newA;
+    compute();
+    build();
+    $("#polyLine").innerHTML = "P(x) = " + polyHTML(c) + ", chia cho " + factorHTML(a) + ", nên <b>a = " + fmt(a) + "</b>";
+    render(0, false);
+  }
+
+  // presets
+  var presetBox = $("#presets");
+  PRESETS.forEach(function (p, idx) {
+    var btn = document.createElement("button");
+    btn.type = "button";
+    btn.textContent = p.name;
+    btn.addEventListener("click", function () {
+      Array.prototype.forEach.call(presetBox.children, function (x) { x.classList.remove("on"); });
+      btn.classList.add("on");
+      $("#coefs").value = p.c.join(" ");
+      $("#aval").value = String(p.a);
+      $("#err").textContent = "";
+      setPoly(p.c.slice(), p.a);
+    });
+    presetBox.appendChild(btn);
+  });
+
+  function parseNum(t) {
+    t = t.replace(/\u2212/g, "-").trim();
+    if (t === "" || !/^-?\d+(\.\d+)?$/.test(t)) return NaN;
+    return Number(t);
+  }
+  $("#applyCustom").addEventListener("click", function () {
+    var parts = $("#coefs").value.split(/[\s,;]+/).filter(Boolean).map(parseNum);
+    var av = parseNum($("#aval").value);
+    var err = $("#err");
+    if (parts.length < 2 || parts.length > 8 || parts.some(isNaN)) {
+      err.textContent = "Hãy nhập từ 2 đến 8 hệ số là số, cách nhau bằng dấu cách.";
+      return;
+    }
+    if (parts[0] === 0) { err.textContent = "Hệ số đầu tiên (bậc cao nhất) phải khác 0."; return; }
+    if (isNaN(av)) { err.textContent = "Giá trị a phải là một số, ví dụ 1 hoặc -2."; return; }
+    err.textContent = "";
+    Array.prototype.forEach.call(presetBox.children, function (x) { x.classList.remove("on"); });
+    setPoly(parts, av);
+  });
+
+  $("#btnNext").addEventListener("click", function () { stopPlay(); if (step < last) render(step + 1, true); });
+  $("#btnPrev").addEventListener("click", function () { stopPlay(); if (step > 0) render(step - 1, false); });
+  $("#btnReset").addEventListener("click", function () { stopPlay(); render(0, false); });
+  $("#btnPlay").addEventListener("click", function () { playing ? stopPlay() : startPlay(); });
+  $("#scrub").addEventListener("input", function () { stopPlay(); render(parseInt(this.value, 10), false); });
+  document.addEventListener("keydown", function (e) {
+    var tag = (e.target && e.target.tagName) || "";
+    if (tag === "INPUT" || tag === "SELECT" || tag === "TEXTAREA") return;
+    if (e.key === "ArrowRight") { stopPlay(); if (step < last) render(step + 1, true); }
+    if (e.key === "ArrowLeft") { stopPlay(); if (step > 0) render(step - 1, false); }
+  });
+  var rz;
+  window.addEventListener("resize", function () {
+    clearTimeout(rz);
+    rz = setTimeout(function () { render(step, false); }, 150);
+  });
+
+  presetBox.children[0].classList.add("on");
+  setPoly(PRESETS[0].c.slice(), PRESETS[0].a);
+})();
+</script>
+</body>
+</html>
